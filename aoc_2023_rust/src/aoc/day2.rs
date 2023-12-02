@@ -46,8 +46,31 @@ fn solve_part1(input: &String) -> String {
     result.to_string()
 }
 
+// Find the minimum count of blocks needed for each game, then calculate
+// the sum of the products of each color count in each game.
 fn solve_part2(input: &String) -> String {
-    String::new()
+    let mut result = 0;
+    for line in input.trim().split('\n') {
+        let game = line.trim().split(':').nth(1).unwrap();
+        let mut color_count = HashMap::from([("red", 0), ("green", 0), ("blue", 0)]);
+        for grab in game.trim().split(';') {
+            for blocks in grab.trim().split(',') {
+                match &blocks.trim().split(' ').take(2).collect::<Vec<&str>>()[..] {
+                    [count, color] => {
+                        let count = i32::from_str_radix(count, 10).ok().unwrap();
+                        color_count
+                            .entry(color)
+                            .and_modify(|c| *c = std::cmp::max(*c, count));
+                    }
+                    _ => panic!("Oops!: {blocks}"),
+                }
+            }
+        }
+        let power = color_count.values().fold(1, |acc, c| acc * c);
+        result += power;
+    }
+
+    result.to_string()
 }
 
 #[cfg(test)]
@@ -62,9 +85,16 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
 ";
 
     #[test]
-    fn test_full() {
+    fn test_full_part1() {
         let input = String::from(INPUT);
         let result = solve_part1(&input);
         assert_eq!(result, String::from("8"));
+    }
+
+    #[test]
+    fn test_full_part2() {
+        let input = String::from(INPUT);
+        let result = solve_part2(&input);
+        assert_eq!(result, String::from("2286"));
     }
 }
