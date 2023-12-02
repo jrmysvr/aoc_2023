@@ -9,3 +9,4 @@ var allDays = @[
 proc runAll*() =
   for day in allDays:
     day()
+    echo ""
