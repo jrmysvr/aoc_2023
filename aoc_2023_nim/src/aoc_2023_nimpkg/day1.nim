@@ -33,8 +33,8 @@ func getCalibValueFrom(line: string, digitsOnly: bool = true): int =
   10 * tens + ones
 
 proc run*() =
-  echo "Day 1"
-  echo "-----------"
+  echo "Day 1 Solutions"
+  echo "---------------"
   let input = readInputForDay(1)
   var calibSum1 = 0
   var calibSum2 = 0

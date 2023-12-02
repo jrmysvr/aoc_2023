@@ -41,7 +41,7 @@ proc solvePart2(input: string): string =
 
 proc run*() =
   echo "Day 2 Solutions"
-  echo "------------------"
+  echo "---------------"
   let input = readInputForDay(2)
   let part1 = solvePart1(input)
   let part2 = solvePart2(input)

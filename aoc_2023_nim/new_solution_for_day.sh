@@ -17,6 +17,12 @@ fi
 
 echo "Creating a new solution file: $fpath"
 
+banner="----------------"
+if (( $day > 9 ))
+then
+    banner="-----------------"
+fi
+
 cat > "$fpath" <<EOF
 import input
 
@@ -30,9 +36,9 @@ proc solvePart2(input: string): string =
 
 
 proc run*() =
-  echo "Day 2 Solutions"
-  echo "------------------"
-  let input = readInputForDay(2)
+  echo "Day $day Solutions"
+  echo "$banner"
+  let input = readInputForDay($day)
   let part1 = solvePart1(input)
   let part2 = solvePart2(input)
 
