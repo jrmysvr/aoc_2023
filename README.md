@@ -9,6 +9,13 @@ cargo test
 cargo run
 ```
 
+### Nim Solutions
+```shell
+cd aoc_2023_nim
+nimble test
+nimble aoc
+```
+
 ## Fetch input for a given day
 
 **_Do not overload the AOC server!_**
