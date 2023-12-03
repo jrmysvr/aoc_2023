@@ -1,9 +1,4 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 use crate::aoc::input::read_input_for_day;
-use lazy_static::lazy_static;
-use std::collections::HashSet;
 
 pub fn run() {
     println!("Day 3 Solutions");
@@ -13,11 +8,6 @@ pub fn run() {
     let part2 = solve_part2(&input);
     println!("\tPart1: {part1}");
     println!("\tPart2: {part2}");
-}
-
-lazy_static! {
-    static ref SYMBOLS: HashSet<char> =
-        HashSet::from_iter("!@#$%^&*?,;\"':~`+=_-<>{}[]|/\\".chars());
 }
 
 type Coordinate = (usize, usize);
@@ -42,6 +32,10 @@ impl Cell {
 
     fn is_symbol(&self) -> bool {
         !self.is_number()
+    }
+
+    fn is_gear(&self) -> bool {
+        self.val == "*".to_string()
     }
 
     fn is_number(&self) -> bool {
@@ -93,28 +87,30 @@ fn convert_input_to_cells(input: &String) -> Vec<Cell> {
     let mut cells = Vec::new();
     for (r, line) in input.split('\n').enumerate() {
         let mut num_str = String::from("");
-        let mut num_row = 0;
         for (c, chr) in line.chars().enumerate() {
-            if SYMBOLS.contains(&chr) {
-                cells.push(Cell::new(chr.to_string(), (r, c)));
-            } else if chr == '.' {
+            if !chr.is_digit(10) {
                 if num_str.len() > 0 {
-                    cells.push(Cell::new(num_str.clone(), (num_row, c - num_str.len())));
+                    cells.push(Cell::new(num_str.clone(), (r, c - num_str.len())));
                     num_str = String::from("");
-                    num_row = 0;
+                }
+                if chr != '.' {
+                    cells.push(Cell::new(chr.to_string(), (r, c)));
                 }
             } else {
                 // It's a number
-                num_row = r;
                 num_str.push(chr);
             }
+        }
+        if num_str.len() > 0 {
+            let c = line.len() - num_str.len();
+            cells.push(Cell::new(num_str.clone(), (r, c)));
         }
     }
 
     cells
 }
 
-// Find all numbers adjacent to symbols (including diagonally!).
+// Find the sum of all numbers adjacent to symbols (including diagonally!).
 fn solve_part1(input: &String) -> String {
     // Preprocess:
     //  - Parse input into `Cell`s
@@ -128,25 +124,42 @@ fn solve_part1(input: &String) -> String {
         .filter(|cell| cell.is_symbol())
         .collect::<Vec<&Cell>>();
     let mut sum = 0;
-    let mut number_cells = Vec::<&Cell>::new();
     for symbol_cell in symbol_cells.iter() {
         for cell in cells.iter() {
             if cell.is_number() && cell.is_neighbor_of(symbol_cell) {
                 sum += cell.num_val();
-                number_cells.push(cell);
             }
         }
     }
-    let len = number_cells.len();
-    let number_set: HashSet<&Cell> = HashSet::from_iter(number_cells.into_iter());
-    assert!(number_set.len() == len);
-
-
     sum.to_string()
 }
 
+// Find the sum of the products of numbers adjacent to all gears ("*") for
+// gears with exactly two adjacent numbers.
 fn solve_part2(input: &String) -> String {
-    String::new()
+    let cells = convert_input_to_cells(input);
+    let gear_cells = cells
+        .iter()
+        .filter(|cell| cell.is_gear())
+        .collect::<Vec<&Cell>>();
+    let mut sum = 0;
+    for gear_cell in gear_cells.iter() {
+        let mut number_cells = Vec::<&Cell>::new();
+        for cell in cells.iter() {
+            if cell.is_number() && cell.is_neighbor_of(gear_cell) {
+                number_cells.push(cell);
+            }
+            if number_cells.len() > 2 {
+                break;
+            }
+        }
+
+        if number_cells.len() == 2 {
+            sum += number_cells.iter().fold(1, |acc, c| acc * c.num_val());
+        }
+    }
+
+    sum.to_string()
 }
 
 #[cfg(test)]
@@ -154,7 +167,8 @@ mod test {
 
     use super::*;
 
-    const INPUT0: &str = "
+    const INPUT: [&str; 3] = [
+        "
 467..114..
 ...*......
 ..35..633.
@@ -165,9 +179,8 @@ mod test {
 ......755.
 ...$.*....
 .664.598..
-";
-
-    const INPUT1: &str = "
+",
+        "
 467..114..
 ...*......
 @.35..633.
@@ -178,14 +191,23 @@ mod test {
 ~1....755.
 ...$.*....
 .664.598..
-";
+",
+        "
+.......12.......935............184.720...243........589.652..........435.......
+......*.....968*.....$............*........=..348...*..........986....*........
+....291............612....290..........903........699......218*.......376......
+..............156......$..*...891.&731....%..89...................523..........
+................*...189..591.*................*.......783.....107..-...54.287..
+...229*952.....938............470.555.......746...28.....+...*.................
+...................................*...............@.........867.-....102..845.
+563.727.....282....237..171.......892...183.......................989....*.....
+....#..........+...*.......*..........................&......129+......491.....
+.................53.....781...&295....@773.336......547........................
+",
+    ];
 
-    fn get_input0() -> String {
-        String::from(INPUT0.trim())
-    }
-
-    fn get_input1() -> String {
-        String::from(INPUT1.trim())
+    fn get_input(ix: usize) -> String {
+        INPUT[ix].trim().to_string()
     }
 
     #[test]
@@ -219,15 +241,37 @@ mod test {
         for (a, b) in cells.iter().zip(expected_cells.iter()) {
             assert_eq!(a, b);
         }
+
+        let input = String::from("229*952");
+        let expected_cells = vec![
+            Cell::new("229".to_string(), (0, 0)),
+            Cell::new("*".to_string(), (0, 3)),
+            Cell::new("952".to_string(), (0, 4)),
+        ];
+        let cells = convert_input_to_cells(&input);
+        assert_eq!(cells.len(), expected_cells.len());
+        for (actual, expected) in cells.iter().zip(expected_cells.iter()) {
+            assert_eq!(actual, expected);
+        }
     }
 
     #[test]
     fn test_full_part1_0() {
-        assert_eq!(solve_part1(&get_input0()), "4361");
+        assert_eq!(solve_part1(&get_input(0)), "4361");
     }
 
     #[test]
     fn test_full_part1_1() {
-        assert_eq!(solve_part1(&get_input1()), "4420");
+        assert_eq!(solve_part1(&get_input(1)), "4420");
+    }
+
+    #[test]
+    fn test_full_part1_2() {
+        assert_eq!(solve_part1(&get_input(2)), "23775");
+    }
+
+    #[test]
+    fn test_full_part2_0() {
+        assert_eq!(solve_part2(&get_input(0)), "467835");
     }
 }
