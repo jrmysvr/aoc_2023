@@ -1,6 +1,5 @@
 import input
 import std/[enumerate, math, strutils, sugar]
-import std/algorithm
 
 type
   Cell = object
@@ -25,7 +24,7 @@ proc isNumber(cell: Cell): bool =
 proc isSymbol(cell: Cell): bool =
   result = not cell.isNumber
 
-proc isGear(cell: Cell) : bool =
+proc isGear(cell: Cell): bool =
   result = cell.val == "*"
 
 proc numVal(cell: Cell): int =
@@ -36,16 +35,16 @@ proc isNeighborOfCoor(cell: Cell, coor: Coordinate): bool =
     for cx in [-1, 0, 1]:
       if rx == 0 and cx == 0: continue
       var
-        row = coor.row + rx
-        col = coor.col + cx
+        row = max(coor.row + rx, 0)
+        col = max(coor.col + cx, 0)
       if cell.row == row and
-      cell.colRng[0] < col and
+      cell.colRng[0] <= col and
       cell.colRng[1] > col: return true
 
   false
 
 proc isNeighborOf(cell: Cell, other: Cell): bool =
-  for c in (other.colRng[0] .. other.colRng[1]):
+  for c in (other.colRng[0] .. other.colRng[1]-1):
     if cell.isNeighborOfCoor((other.row, c)):
       return true
 
@@ -60,7 +59,7 @@ proc convertInputToCells(input: string): seq[Cell] =
         numStr &= ch
       else:
         if numStr.len > 0:
-          cells.add(newCell(numStr, (row, col-numStr.len)))
+          cells.add(newCell(numStr, (row, col - numStr.len)))
           numStr = ""
         if ch != '.':
           cells.add(newCell("" & ch, (row, col)))
@@ -88,28 +87,23 @@ proc solvePart1(input: string): string =
 proc solvePart2(input: string): string =
   let cells = convertInputToCells(input)
   var sum = 0
-  let symbolCells = collect(newSeq):
+  let gearCells = collect(newSeq):
     for cell in cells:
       if cell.isGear: cell
 
-  for symbolCell in symbolCells:
+  for gearCell in gearCells:
     var nums: seq[int] = @[]
     for cell in cells:
-      if cell.isNumber and cell.isNeighborOf(symbolCell):
+      if cell.isNumber and cell.isNeighborOf(gearCell):
         nums.add(cell.numVal)
     if nums.len == 2:
       sum += prod(nums)
 
   result = $sum
 
-
-
 proc run*() =
   echo "Day 3 Solutions"
   echo "----------------"
   let input = readInputForDay(3)
-  let part1 = solvePart1(input.strip)
-  let part2 = solvePart2(input.strip)
-
-  echo "Part 1: ", solvePart1(input)
-  echo "Part 2: ", solvePart2(input)
+  echo "Part 1: ", solvePart1(input.strip)
+  echo "Part 2: ", solvePart2(input.strip)
