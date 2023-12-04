@@ -1,5 +1,7 @@
 use crate::aoc::input::read_input_for_day;
 
+use std::collections::HashSet;
+
 pub fn run() {
     println!("Day 4 Solutions");
     println!("---------------");
@@ -19,7 +21,7 @@ fn convert_input_to_card_counts(input: &String) -> Vec<usize> {
             .filter(|&s| s != "")
             .take_while(|&s| s != "|")
             .map(|w| usize::from_str_radix(w, 10).unwrap())
-            .collect::<Vec<usize>>();
+            .collect::<HashSet<usize>>();
         let numbers = all_numbers
             .split(' ')
             .filter(|&s| s != "")
@@ -62,10 +64,8 @@ fn solve_part2(input: &String) -> String {
         let count = card_counts[card_id];
         won_cards[card_id] += 1;
         // Copy won cards
-        for _ in 0..won_cards[card_id] {
-            for i in 1..=count {
-                won_cards[card_id+i] += 1;
-            }
+        for i in 1..=count {
+            won_cards[card_id + i] += won_cards[card_id];
         }
     }
 
