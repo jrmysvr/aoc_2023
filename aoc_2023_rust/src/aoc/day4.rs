@@ -1,5 +1,4 @@
 use crate::aoc::input::read_input_for_day;
-use std::collections::{HashSet, HashMap};
 
 pub fn run() {
     println!("Day 4 Solutions");
@@ -11,56 +10,39 @@ pub fn run() {
     println!("\tPart2: {part2}");
 }
 
-type Num = i32;
-type Wins = HashSet<Num>;
-type Nums = Vec<Num>;
-type CardId = usize;
-type Cards = Vec<(CardId, Wins, Nums)>;
-type CardResults = HashMap<CardId, usize>;
-
-fn convert_input_to_cards(input: &String) -> Cards {
-    let mut cards = Cards::new();
-    for (ix, line) in input.trim().split('\n').enumerate() {
+fn convert_input_to_card_counts(input: &String) -> Vec<usize> {
+    let mut results = Vec::<usize>::new();
+    for line in input.trim().split('\n') {
         let all_numbers = line.split(':').nth(1).unwrap();
         let winning = all_numbers
             .split(' ')
             .filter(|&s| s != "")
             .take_while(|&s| s != "|")
-            .map(|w| Num::from_str_radix(w, 10).unwrap())
-            .collect::<Wins>();
+            .map(|w| usize::from_str_radix(w, 10).unwrap())
+            .collect::<Vec<usize>>();
         let numbers = all_numbers
             .split(' ')
             .filter(|&s| s != "")
             .skip_while(|&s| s != "|")
             .skip(1)
-            .map(|n| Num::from_str_radix(n, 10).unwrap())
-            .collect::<Nums>();
-        let card_id = ix + 1;
-        cards.push((card_id, winning, numbers));
-    }
-
-    cards
-}
-
-fn convert_input_to_card_results(input: &String) -> CardResults {
-    let cards = convert_input_to_cards(input);
-    let mut results = CardResults::new();
-    for (card_id, winning, numbers) in cards {
+            .map(|n| usize::from_str_radix(n, 10).unwrap())
+            .collect::<Vec<usize>>();
         let count = numbers
             .iter()
             .filter(|num| winning.contains(num))
-            .collect::<Vec<&Num>>()
+            .collect::<Vec<&usize>>()
             .len();
-        results.entry(card_id).or_insert(count);
+        results.push(count);
     }
 
     results
 }
 
+// Calculate total "points" for all winning cards
 fn solve_part1(input: &String) -> String {
-    let card_results = convert_input_to_card_results(input);
+    let card_counts = convert_input_to_card_counts(input);
     let mut points = 0;
-    for (_, count) in card_results {
+    for count in card_counts {
         points += if count > 0 {
             2u32.pow((count as i32 - 1) as u32)
         } else {
@@ -71,20 +53,23 @@ fn solve_part1(input: &String) -> String {
     points.to_string()
 }
 
+// Calculate total number of winning cards which are won by winning cards!
 fn solve_part2(input: &String) -> String {
-    let card_results = convert_input_to_card_results(input);
-    let mut copies = vec![0; card_results.len()];
-    for card_id in 1..=card_results.len() {
-        let count = card_results[&card_id];
-        copies[card_id-1] += 1;
-        for _ in 0..copies[card_id-1] {
-            for i in 0..count {
-                copies[card_id+i] += 1;
+    let card_counts = convert_input_to_card_counts(input);
+    let mut won_cards = vec![0; card_counts.len()];
+    // Cards are 1 indexed, but 0 indexing is nicer
+    for card_id in 0..card_counts.len() {
+        let count = card_counts[card_id];
+        won_cards[card_id] += 1;
+        // Copy won cards
+        for _ in 0..won_cards[card_id] {
+            for i in 1..=count {
+                won_cards[card_id+i] += 1;
             }
         }
     }
 
-    copies.iter().fold(0, |acc, c| acc + c).to_string()
+    won_cards.iter().fold(0, |acc, c| acc + c).to_string()
 }
 
 #[cfg(test)]
@@ -104,17 +89,15 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
     }
 
     #[test]
-    fn test_convert_input_to_cards() {
+    fn test_convert_input_to_card_counts() {
         let input = String::from("Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53");
-        let expected_cards: Cards = vec![(1, Wins::from([41, 48, 83, 86, 17]), vec![])];
-        let cards = convert_input_to_cards(&input);
+        let expected_counts: Vec<usize> = vec![4];
+        let counts = convert_input_to_card_counts(&input);
 
-        assert!(cards.len() == 1);
+        assert_eq!(expected_counts.len(), counts.len());
 
-        for (actual, expected) in cards.iter().zip(expected_cards.iter()) {
-            let (_, a_win, _) = actual;
-            let (_, e_win, _) = expected;
-            assert_eq!(a_win, e_win);
+        for (actual, expected) in counts.iter().zip(expected_counts.iter()) {
+            assert_eq!(actual, expected);
         }
     }
 
