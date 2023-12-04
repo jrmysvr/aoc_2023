@@ -39,8 +39,6 @@ proc run*() =
   echo "Day $day Solutions"
   echo "$banner"
   let input = readInputForDay($day)
-  let part1 = solvePart1(input)
-  let part2 = solvePart2(input)
 
   echo "Part 1: ", solvePart1(input)
   echo "Part 2: ", solvePart2(input)
