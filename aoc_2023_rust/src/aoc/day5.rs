@@ -9,8 +9,8 @@ pub fn run() {
     println!("---------------");
     let input = read_input_for_day(5);
     let part1 = solve_part1(&input);
-    let part2 = solve_part2(&input);
     println!("\tPart1: {part1}");
+    let part2 = solve_part2(&input);
     println!("\tPart2: {part2}");
 }
 
@@ -131,8 +131,26 @@ fn solve_part1(input: &String) -> String {
     lowest_location.to_string()
 }
 
+// Determine the "closest" location that needs a seed based on a range of seed values
 fn solve_part2(input: &String) -> String {
-    String::new()
+    let input = String::from(input.trim()); // :(
+    let seeds = parse_seeds_from(&input);
+    let mut all_seeds = Vec::<Num>::new();
+    let mut lowest_location = Num::MAX;
+    let maps = parse_maps_from(&input);
+    let mut cache = HashMap::<Num, Num>::new();
+    for i in (0..seeds.len()-1).step_by(2) {
+        let (val, rng) = (seeds[i], seeds[i+1]);
+        for seed in (val..(val + rng)) {
+            if cache.contains_key(&seed) { continue; }
+            print!("\r{i}/{} Checking seed: {}", seeds.len()-1, seed);
+            let current_location = calc_location_for_seed(seed, &maps);
+            lowest_location = std::cmp::min(lowest_location, current_location);
+            cache.entry(current_location).or_insert(seed);
+        }
+    }
+
+    lowest_location.to_string()
 }
 
 #[cfg(test)]
@@ -294,7 +312,12 @@ humidity-to-location map:
     }
 
     #[test]
-    fn test_full() {
+    fn test_full_part1() {
         assert_eq!(solve_part1(&get_input(0)), "35");
+    }
+
+    #[test]
+    fn test_full_part2() {
+        assert_eq!(solve_part2(&get_input(0)), "46");
     }
 }
