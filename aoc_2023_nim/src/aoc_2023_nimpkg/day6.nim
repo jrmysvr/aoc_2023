@@ -25,29 +25,46 @@ proc parseInputPart2(input: string): seq[Record] =
   let times = input
     .split('\n')[0]
     .split(':')[1]
-    .replace(" ", "")
+    .filterIt(it.isDigit)
+    .join("")
     .parseInt
+
   let distances = input
     .split('\n')[1]
     .split(':')[1]
-    .replace(" ", "")
+    .filterIt(it.isDigit)
+    .join("")
     .parseInt
   result = @[(times, distances)]
 
 
 proc solvePart1(input: string): string =
   let records = parseInputPart1(input)
-  result = $records
-    .map(rec => toSeq(0..rec.time)
-      .filter(t => (t * (rec.time - t)) > rec.distance).len)
-    .prod
+  var product = 1
+  for record in records:
+    var count = 0
+    for t in 0..record.time:
+      if t * (record.time - t) > record.distance:
+        count += 1
+
+    product *= count
+
+  result = $product
+
 
 proc solvePart2(input: string): string =
   let records = parseInputPart2(input)
-  result = $records
-    .map(rec => toSeq(0..rec.time)
-      .filter(t => (t * (rec.time - t)) > rec.distance).len)
-    .prod
+  var product = 1
+  for record in records:
+    var count = 0
+    for t in 0..record.time:
+      if t * (record.time - t) > record.distance:
+        count += 1
+
+    product *= count
+
+  result = $product
+
 
 proc run*() =
   echo "Day 6 Solutions"
