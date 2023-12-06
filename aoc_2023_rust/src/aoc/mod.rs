@@ -3,6 +3,7 @@ pub mod day2;
 pub mod day3;
 pub mod day4;
 pub mod day5;
+pub mod day6;
 pub mod input;
 
 pub fn run_all() {
@@ -12,6 +13,7 @@ pub fn run_all() {
         day3::run,
         day4::run,
         day5::run,
+        day6::run,
     ];
 
     for day in days {
