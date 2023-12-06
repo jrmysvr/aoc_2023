@@ -79,11 +79,12 @@ fn parse_map_from(input: &String) -> Map {
     Map::new(String::from(name), mappings)
 }
 
-fn parse_maps_from(input: &String) -> HashMap<String, Map> {
+fn parse_maps_from(input: &String, src_map: bool) -> HashMap<String, Map> {
     let mut maps = HashMap::<String, Map>::new();
     for map_input in input.split("\n\n").skip(1) {
         let map = parse_map_from(&map_input.to_string());
-        maps.insert(map.src_name.to_owned(), map);
+        let name = if src_map { map.src_name.to_owned() } else { map.dst_name.to_owned() };
+        maps.insert(name, map);
     }
 
     maps
@@ -102,6 +103,23 @@ fn calc_dst_for_src(src_name: &str, src_value: Num, maps: &HashMap<String, Map>)
     (map.dst_name.clone(), value)
 }
 
+fn calc_src_for_dst(dst_name: &str, dst_value: Num, maps: &HashMap<String, Map>) -> (String, Num) {
+    let map = &maps[dst_name];
+    let mut value = dst_value;
+    for mapping in map.mappings.iter() {
+        let &Mapping{ src, dst, rng } = mapping;
+        if dst <= dst_value && dst_value < (dst + rng) {
+            value = src + (dst_value - dst);
+        }
+
+    }
+    (map.src_name.clone(), value)
+}
+
+// TODO: Basically, check if the seed value could come from any of the locations.
+//       - If so, then perform some sort of search (binary?) to find the smallest location?
+
+
 fn calc_location_for_seed(seed: Num, maps: &HashMap<String, Map>) -> Num {
     let mut src_name = String::from("seed");
     let mut src_value = seed;
@@ -115,13 +133,36 @@ fn calc_location_for_seed(seed: Num, maps: &HashMap<String, Map>) -> Num {
     src_value
 }
 
+// TODO: consolidate this with `calc_location_for_seed
+fn calc_seed_from_location(location: Num, maps: &HashMap<String, Map>) -> Num {
+    let mut dst_name = String::from("location");
+    let mut dst_value = location;
+    let seed = "seed".to_string();
+    while dst_name != seed {
+        let (src_name, src_value) = calc_src_for_dst(&dst_name[..], dst_value, maps);
+        dst_name = src_name.clone();
+        dst_value = src_value;
+    }
+
+    dst_value   
+}
+
+fn is_valid_seed(seed: Num, all_seeds: &Vec<Num>) -> bool {
+    for i in (0..all_seeds.len()-1).step_by(2) {
+        let (current_seed, seed_rng) = (all_seeds[i], all_seeds[i+1]);
+        if current_seed <= seed && seed <= current_seed + seed_rng { return true; }
+    }
+
+    false
+}
+
 // Determine the "closest" location that needs a seed
 //  - Which basically means find the smallest location value that's found through
 //    a series of mappings in the given input string.
 fn solve_part1(input: &String) -> String {
     let input = String::from(input.trim()); // :(
     let seeds = parse_seeds_from(&input);
-    let maps = parse_maps_from(&input);
+    let maps = parse_maps_from(&input, true);
     let mut lowest_location = Num::MAX;
     for seed in seeds {
         let current_location = calc_location_for_seed(seed, &maps);
@@ -135,19 +176,24 @@ fn solve_part1(input: &String) -> String {
 fn solve_part2(input: &String) -> String {
     let input = String::from(input.trim()); // :(
     let seeds = parse_seeds_from(&input);
-    let mut all_seeds = Vec::<Num>::new();
+    let starting_seeds = seeds.iter().step_by(2);
+    let maps = parse_maps_from(&input, true);
     let mut lowest_location = Num::MAX;
-    let maps = parse_maps_from(&input);
-    let mut cache = HashMap::<Num, Num>::new();
-    for i in (0..seeds.len()-1).step_by(2) {
-        let (val, rng) = (seeds[i], seeds[i+1]);
-        for seed in (val..(val + rng)) {
-            if cache.contains_key(&seed) { continue; }
-            print!("\r{i}/{} Checking seed: {}", seeds.len()-1, seed);
-            let current_location = calc_location_for_seed(seed, &maps);
-            lowest_location = std::cmp::min(lowest_location, current_location);
-            cache.entry(current_location).or_insert(seed);
+    for seed in starting_seeds {
+        let current_location = calc_location_for_seed(*seed, &maps);
+        lowest_location = std::cmp::min(lowest_location, current_location);
+    }
+
+    let rev_maps = parse_maps_from(&input, false);
+    let mut location = lowest_location;
+    loop {
+        location -= 1;
+        let seed = calc_seed_from_location(location, &rev_maps);
+        if is_valid_seed(seed, &seeds) {
+            lowest_location = std::cmp::min(lowest_location, location);
         }
+
+        if location == 0 { break; }
     }
 
     lowest_location.to_string()
@@ -226,7 +272,7 @@ humidity-to-location map:
         let expected_values = [81, 14, 57, 13];
         let expected_dst_name = "soil";
         let src_name = "seed";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in seeds.iter().zip(expected_values.iter()) {
             let (dst_name, dst_value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -237,7 +283,7 @@ humidity-to-location map:
         let expected_values = [81, 53, 57, 52];
         let expected_dst_name = "fertilizer";
         let src_name = "soil";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in soils.iter().zip(expected_values.iter()) {
             let (dst_name, value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -248,7 +294,7 @@ humidity-to-location map:
         let expected_values = [81, 49, 53, 41];
         let expected_dst_name = "water";
         let src_name = "fertilizer";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in fertilizers.iter().zip(expected_values.iter()) {
             let (dst_name, value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -259,7 +305,7 @@ humidity-to-location map:
         let expected_values = [74, 42, 46, 34];
         let expected_dst_name = "light";
         let src_name = "water";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in water.iter().zip(expected_values.iter()) {
             let (dst_name, value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -270,7 +316,7 @@ humidity-to-location map:
         let expected_values = [78, 42, 82, 34];
         let expected_dst_name = "temperature";
         let src_name = "light";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in light.iter().zip(expected_values.iter()) {
             let (dst_name, value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -281,7 +327,7 @@ humidity-to-location map:
         let expected_values = [78, 43, 82, 35]; 
         let expected_dst_name = "humidity";
         let src_name = "temperature";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in temperatures.iter().zip(expected_values.iter()) {
             let (dst_name, value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -292,7 +338,7 @@ humidity-to-location map:
         let expected_values = [82, 43, 86, 35];
         let expected_dst_name = "location";
         let src_name = "humidity";
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (value, expected_value) in humidity.iter().zip(expected_values.iter()) {
             let (dst_name, value) = calc_dst_for_src(src_name, *value, &maps);
             assert_eq!(dst_name, expected_dst_name);
@@ -304,11 +350,51 @@ humidity-to-location map:
     fn test_calc_location_for_seed() {
         let seeds = Seeds::from([79, 14, 55, 13]);
         let expected_locations = [82, 43, 86, 35];
-        let maps = parse_maps_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
         for (seed, expected_location) in seeds.iter().zip(expected_locations.iter()) {
             let location = calc_location_for_seed(*seed, &maps);
             assert_eq!(location, *expected_location);
         }
+    }
+
+    #[test]
+    fn test_calc_seed_from_location() {
+        let locations = vec![82, 43, 86, 35];
+        let expected_seeds = [79, 14, 55, 13];
+        let maps = parse_maps_from(&get_input(0), false);
+        assert_eq!(locations.len(), expected_seeds.len());
+        for (location, expected_seed) in locations.iter().zip(expected_seeds.iter()) {
+            let seed = calc_seed_from_location(*location, &maps);
+            assert_eq!(seed, *expected_seed);
+        }
+    }
+
+    #[test]
+    fn test_reverse_mapping() {
+        let maps = parse_maps_from(&get_input(0), false);
+        let dst_name = "location";
+        let map = &maps[dst_name];
+        assert_eq!(map.src_name, "humidity");
+        assert_eq!(map.dst_name, "location");
+
+        let (src_name, value) = calc_src_for_dst(dst_name, 56, &maps);
+        assert_eq!(src_name, "humidity");
+        assert_eq!(value, 93);
+    }
+
+    #[test]
+    fn test_is_valid_seed() {
+        let seeds = vec![79, 14, 55, 13];
+        assert!(is_valid_seed(79, &seeds));
+        assert!(is_valid_seed(80, &seeds));
+        assert!(is_valid_seed(93, &seeds));
+        assert!(is_valid_seed(55, &seeds));
+        assert!(is_valid_seed(56, &seeds));
+        assert!(is_valid_seed(68, &seeds));
+        assert!(!is_valid_seed(78, &seeds));
+        assert!(!is_valid_seed(94, &seeds));
+        assert!(!is_valid_seed(54, &seeds));
+        assert!(!is_valid_seed(70, &seeds));
     }
 
     #[test]
