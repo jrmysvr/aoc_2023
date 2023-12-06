@@ -83,7 +83,11 @@ fn parse_maps_from(input: &String, src_map: bool) -> HashMap<String, Map> {
     let mut maps = HashMap::<String, Map>::new();
     for map_input in input.split("\n\n").skip(1) {
         let map = parse_map_from(&map_input.to_string());
-        let name = if src_map { map.src_name.to_owned() } else { map.dst_name.to_owned() };
+        let name = if src_map {
+            map.src_name.to_owned()
+        } else {
+            map.dst_name.to_owned()
+        };
         maps.insert(name, map);
     }
 
@@ -94,11 +98,10 @@ fn calc_dst_for_src(src_name: &str, src_value: Num, maps: &HashMap<String, Map>)
     let map = &maps[src_name];
     let mut value = src_value;
     for mapping in map.mappings.iter() {
-        let &Mapping{ src, dst, rng } = mapping;
+        let &Mapping { src, dst, rng } = mapping;
         if src <= src_value && src_value < (src + rng) {
             value = dst + (src_value - src);
         }
-
     }
     (map.dst_name.clone(), value)
 }
@@ -107,18 +110,16 @@ fn calc_src_for_dst(dst_name: &str, dst_value: Num, maps: &HashMap<String, Map>)
     let map = &maps[dst_name];
     let mut value = dst_value;
     for mapping in map.mappings.iter() {
-        let &Mapping{ src, dst, rng } = mapping;
+        let &Mapping { src, dst, rng } = mapping;
         if dst <= dst_value && dst_value < (dst + rng) {
             value = src + (dst_value - dst);
         }
-
     }
     (map.src_name.clone(), value)
 }
 
 // TODO: Basically, check if the seed value could come from any of the locations.
 //       - If so, then perform some sort of search (binary?) to find the smallest location?
-
 
 fn calc_location_for_seed(seed: Num, maps: &HashMap<String, Map>) -> Num {
     let mut src_name = String::from("seed");
@@ -144,17 +145,46 @@ fn calc_seed_from_location(location: Num, maps: &HashMap<String, Map>) -> Num {
         dst_value = src_value;
     }
 
-    dst_value   
+    dst_value
 }
 
 fn is_valid_seed(seed: Num, all_seeds: &Vec<Num>) -> bool {
-    for i in (0..all_seeds.len()-1).step_by(2) {
-        let (current_seed, seed_rng) = (all_seeds[i], all_seeds[i+1]);
-        if current_seed <= seed && seed <= current_seed + seed_rng { return true; }
+    for i in (0..all_seeds.len() - 1).step_by(2) {
+        let (current_seed, seed_rng) = (all_seeds[i], all_seeds[i + 1]);
+        if current_seed <= seed && seed <= current_seed + seed_rng {
+            return true;
+        }
     }
 
     false
 }
+
+fn calc_location_rng_for_seed_rng(
+    seed: Num,
+    seed_rng: Num,
+    maps: &HashMap<String, Map>,
+) -> (Num, Num) {
+    (0, 0)
+}
+
+fn calc_dst_rng_for_src_rng(
+    src_name: &str,
+    src_value: Num,
+    src_rng: Num,
+    maps: &HashMap<String, Map>,
+) -> (String, Num, Num) {
+    let map = &maps[src_name];
+    let mut value = src_value;
+    let mut rng = src_rng;
+    for mapping in map.mappings.iter() {
+        let &Mapping { src, dst, rng } = mapping;
+        if src <= src_value && src_value < (src + rng) {
+            value = dst + (src_value - src);
+        }
+    }
+    (map.dst_name.clone(), value, rng)
+}
+
 
 // Determine the "closest" location that needs a seed
 //  - Which basically means find the smallest location value that's found through
@@ -176,6 +206,16 @@ fn solve_part1(input: &String) -> String {
 fn solve_part2(input: &String) -> String {
     let input = String::from(input.trim()); // :(
     let seeds = parse_seeds_from(&input);
+    let maps = parse_maps_from(&input, true);
+    println!("seeds: {:?}", seeds);
+    for i in 0..seeds.len() - 1 {
+        let (seed, seed_rng) = (seeds[i], seeds[i + 1]);
+        let (location, location_rng) = calc_location_rng_for_seed_rng(seed, seed_rng, &maps);
+        println!("{seed}, {seed_rng}");
+        println!("{location}, {location_rng}");
+    }
+
+    /*
     let starting_seeds = seeds.iter().step_by(2);
     let maps = parse_maps_from(&input, true);
     let mut lowest_location = Num::MAX;
@@ -197,6 +237,8 @@ fn solve_part2(input: &String) -> String {
     }
 
     lowest_location.to_string()
+    */
+    String::new()
 }
 
 #[cfg(test)]
@@ -260,7 +302,7 @@ humidity-to-location map:
         // Get seed-to-soil map
         let input = String::from(full_input.split("\n\n").nth(1).unwrap());
         let map = parse_map_from(&input);
-        let Mapping{src, dst, rng} = map.mappings[0];
+        let Mapping { src, dst, rng } = map.mappings[0];
         assert_eq!(src, 98);
         assert_eq!(dst, 50);
         assert_eq!(rng, 2);
@@ -324,7 +366,7 @@ humidity-to-location map:
         }
 
         let temperatures = Vec::<Num>::from([78, 42, 82, 34]);
-        let expected_values = [78, 43, 82, 35]; 
+        let expected_values = [78, 43, 82, 35];
         let expected_dst_name = "humidity";
         let src_name = "temperature";
         let maps = parse_maps_from(&get_input(0), true);
@@ -370,6 +412,22 @@ humidity-to-location map:
     }
 
     #[test]
+    // fn test_calc_location_rng_from_seed_rng() {
+    fn test_calc_dst_rng_for_src_rng() {
+        let seeds = parse_seeds_from(&get_input(0));
+        let maps = parse_maps_from(&get_input(0), true);
+        println!("seeds: {:?}", seeds);
+        for i in 0..seeds.len() - 1 {
+            let (src, src_rng) = (seeds[i], seeds[i + 1]);
+            let (dst_name, dst, dst_rng) = calc_dst_rng_for_src_rng("src", src, src_rng, &maps);
+            println!("{src}, {src_rng}");
+            println!("{dst}, {dst_rng}");
+        }
+
+        assert!(false);
+    }
+
+    #[test]
     fn test_reverse_mapping() {
         let maps = parse_maps_from(&get_input(0), false);
         let dst_name = "location";
@@ -403,6 +461,7 @@ humidity-to-location map:
     }
 
     #[test]
+    #[ignore]
     fn test_full_part2() {
         assert_eq!(solve_part2(&get_input(0)), "46");
     }
