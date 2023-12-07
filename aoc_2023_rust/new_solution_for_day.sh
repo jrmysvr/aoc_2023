@@ -38,10 +38,24 @@ fn solve_part2(input: &String) -> String {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
+    const INPUT: [&str; 1] = [
+        "",
+    ];
+
+    fn get_input(ix: usize) -> String {
+        String::from(INPUT[ix].trim())
+    }
 
     #[test]
-    fn test_full() {
-        assert!(true);
+    fn test_full_part1() {
+        assert_eq!(solve_part1(&get_input(0)), "");
+    }
+
+    #[test]
+    fn test_full_part2() {
+        assert_eq!(solve_part2(&get_input(0)), "");
     }
 }
 EOF
