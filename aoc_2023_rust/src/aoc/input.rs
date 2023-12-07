@@ -12,5 +12,5 @@ pub fn read_input_for_day(day_number: u8) -> String {
     file.expect("Oops... couldn't read this file...")
         .read_to_string(&mut contents)
         .unwrap();
-    contents
+    contents.trim().to_string()
 }
