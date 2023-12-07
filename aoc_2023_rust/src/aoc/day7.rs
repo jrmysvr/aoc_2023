@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 use crate::aoc::input::read_input_for_day;
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
@@ -86,7 +83,7 @@ impl Hand {
 
     fn new2(card_str: &str, bid: Num) -> Self {
         let cards = parse_cards_from(card_str);
-        let hand_type = calc_hand_type_of(&cards);
+        let hand_type = calc_hand_type2_of(&cards);
         Self {
             cards: cards,
             bid: bid,
@@ -150,6 +147,67 @@ fn calc_hand_type_of(cards: &Vec<Card>) -> HandType {
     }
 }
 
+fn calc_hand_type2_of(cards: &Vec<Card>) -> HandType {
+    let j_cards = cards
+        .iter()
+        .filter(|&card| *card == 'J')
+        .collect::<Vec<&Card>>();
+    let other_cards = cards
+        .iter()
+        .filter(|&card| *card != 'J')
+        .collect::<Vec<&Card>>();
+    let unique_cards: HashSet<&Card> = HashSet::from_iter(other_cards.clone().into_iter());
+    match j_cards.len() {
+        0 => match unique_cards.len() {
+            5 => HandType::HighCard,
+            4 => HandType::OnePair,
+            1 => HandType::FiveOfKind,
+            2 | 3 => {
+                let mut counts: HashMap<char, u8> = HashMap::new();
+                for card in cards.iter() {
+                    counts.entry(*card).and_modify(|c| *c += 1).or_insert(1);
+                }
+                let mut values: Vec<u8> = counts.into_values().collect();
+                values.sort_unstable();
+                return match values[..] {
+                    [1, 4] => HandType::FourOfKind,
+                    [2, 3] => HandType::FullHouse,
+                    [1, 1, 3] => HandType::ThreeOfKind,
+                    [1, 2, 2] => HandType::TwoPair,
+                    _ => panic!("Unknown hand type from value: {values:?}"),
+                };
+            }
+            _ => panic!("Invalid cards!"),
+        },
+        1 => match unique_cards.len() {
+            4 => HandType::OnePair,
+            3 => HandType::ThreeOfKind,
+            2 => {
+                let mut counts: HashMap<&char, u8> = HashMap::new();
+                for card in other_cards.into_iter() {
+                    counts.entry(card).and_modify(|c| *c += 1).or_insert(1);
+                }
+                let mut values: Vec<u8> = counts.into_values().collect();
+                values.sort_unstable();
+                return match values[..] {
+                    [1, 3] => HandType::FourOfKind,
+                    [2, 2] => HandType::FullHouse,
+                    _ => panic!("Unknown hand type from value: {values:?}"),
+                };
+            }
+            1 => HandType::FiveOfKind,
+            _ => panic!("Invalid cards!"),
+        },
+        2 | 3 => match unique_cards.len() {
+            3 => HandType::ThreeOfKind,
+            2 => HandType::FourOfKind,
+            1 => HandType::FiveOfKind,
+            _ => panic!("Invalid cards!"),
+        },
+        _ => HandType::FiveOfKind,
+    }
+}
+
 fn parse_cards_from(input: &str) -> Vec<Card> {
     let cards = input.chars().collect::<Vec<Card>>();
     cards
@@ -161,10 +219,23 @@ fn parse_hand_from(input: &str) -> Hand {
     Hand::new(card_str, bid)
 }
 
+fn parse_hand2_from(input: &str) -> Hand {
+    let bid = Num::from_str_radix(input.split(' ').nth(1).unwrap().trim(), 10).unwrap();
+    let card_str = input.split(' ').nth(0).unwrap().trim();
+    Hand::new2(card_str, bid)
+}
+
 fn parse_hands_from(input: &String) -> Vec<Hand> {
     input
         .split('\n')
         .map(parse_hand_from)
+        .collect::<Vec<Hand>>()
+}
+
+fn parse_hands2_from(input: &String) -> Vec<Hand> {
+    input
+        .split('\n')
+        .map(parse_hand2_from)
         .collect::<Vec<Hand>>()
 }
 
@@ -180,7 +251,14 @@ fn solve_part1(input: &String) -> String {
 }
 
 fn solve_part2(input: &String) -> String {
-    String::new()
+    let mut hands = parse_hands2_from(input);
+    hands.sort();
+    hands
+        .iter()
+        .enumerate()
+        .map(|(ix, hand)| ((ix + 1) as Num) * hand.bid)
+        .fold(0, |acc, h| acc + h)
+        .to_string()
 }
 
 #[cfg(test)]
@@ -220,17 +298,16 @@ QQQJA 483
         let input = get_input(0);
         let first_input = input.split('\n').nth(0).unwrap();
         let expected_hand = Hand::new2("32T3K", 765);
-        assert_eq!(parse_hand_from(&first_input), expected_hand);
+        assert_eq!(parse_hand2_from(&first_input), expected_hand);
 
         let first_two = input.split('\n').take(2).collect::<Vec<&str>>().join("\n");
         let expected_hands = vec![Hand::new2("32T3K", 0), Hand::new2("T55J5", 0)];
-        let hands = parse_hands_from(&first_two);
+        let hands = parse_hands2_from(&first_two);
         assert_eq!(hands.len(), expected_hands.len());
         for (actual, expected) in hands.iter().zip(expected_hands.iter()) {
             assert_eq!(actual, expected);
         }
     }
-
 
     #[test]
     fn test_parse_hand_types() {
@@ -255,12 +332,18 @@ QQQJA 483
     fn test_parse_hand_types_part2() {
         let hands = vec![
             Hand::new2("2T3K3", 0),
-            Hand::new2("5T5J5", 0),
+            Hand::new2("T55J5", 0),
+            Hand::new2("KK677", 0),
+            Hand::new2("KTJJT", 0),
+            Hand::new2("QQQJA", 0),
             Hand::new2("22J22", 0),
         ];
 
         let expected_types = vec![
             HandType::OnePair,
+            HandType::FourOfKind,
+            HandType::TwoPair,
+            HandType::FourOfKind,
             HandType::FourOfKind,
             HandType::FiveOfKind,
         ];
@@ -270,7 +353,6 @@ QQQJA 483
         }
     }
 
-
     #[test]
     fn test_compare_hands() {
         assert!(HandType::ThreeOfKind < HandType::FourOfKind);
@@ -279,6 +361,23 @@ QQQJA 483
             // Win                  Lose
             (Hand::new("5T5J5", 0), Hand::new("2T3K3", 0)),
             (Hand::new("22J22", 0), Hand::new("5T5J5", 0)),
+        ];
+        for (win, lose) in hands {
+            println!("{win:?} > {lose:?}");
+            assert!(win > lose);
+        }
+    }
+
+    #[test]
+    fn test_compare_hands2() {
+        assert!(HandType::ThreeOfKind < HandType::FourOfKind);
+
+        let hands = vec![
+            // Win                  Lose
+            (Hand::new2("T55J5", 0), Hand::new2("23T3K", 0)),
+            (Hand::new2("KK677", 0), Hand::new2("23T3K", 0)),
+            (Hand::new2("KTJJT", 0), Hand::new2("QQQJA", 0)),
+            (Hand::new2("22J22", 0), Hand::new2("T55J5", 0)),
         ];
         for (win, lose) in hands {
             println!("{win:?} > {lose:?}");
@@ -302,6 +401,30 @@ QQQJA 483
             Hand::new("KK677", 0),
             Hand::new("5T5J5", 0),
             Hand::new("QQQJA", 0),
+        ];
+        hands.sort();
+
+        for (actual, expected) in hands.iter().zip(sorted_hands.iter()) {
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn test_sort_hands2() {
+        let mut hands = vec![
+            Hand::new2("32T3K", 0),
+            Hand::new2("T55J5", 0),
+            Hand::new2("KK677", 0),
+            Hand::new2("KTJJT", 0),
+            Hand::new2("QQQJA", 0),
+        ];
+
+        let sorted_hands = vec![
+            Hand::new2("32T3K", 0),
+            Hand::new2("KK677", 0),
+            Hand::new2("T55J5", 0),
+            Hand::new2("QQQJA", 0),
+            Hand::new2("KTJJT", 0),
         ];
         hands.sort();
 
