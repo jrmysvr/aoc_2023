@@ -14,41 +14,14 @@ pub fn run() {
     println!("\tPart2: {part2}");
 }
 
-/* This is overkill, but maybe it would be fun to learn how to make an iterator
- * that will also cycle
-#[derive(Debug, PartialEq)]
-struct Instructions {
-    raw: String,
-    ix: usize,
-}
-
-impl Instructions {
-    fn new(instr: &str) -> Self {
-        Self {
-            raw: String::from(instr),
-            ix: 0,
-        }
-    }
-}
-
-impl Iterator for Instructions {
-    type Item = char;
-    fn next(&mut self) -> Option<Self::Item> {
-        let nxt = self.raw.chars().nth(self.ix);
-        self.ix += 1;
-        nxt
-    }
-}
-*/
-
+type Num = i64;
 type Instructions = String;
+type Network<'a> = HashMap<&'a str, (&'a str, &'a str)>;
 
 fn parse_instructions_from(input: &String) -> Instructions {
     let instruction_str = input.split('\n').nth(0).unwrap().trim();
     Instructions::from(instruction_str)
 }
-
-type Network<'a> = HashMap<&'a str, (&'a str, &'a str)>;
 
 fn parse_network_from(input: &String) -> Network {
     let lines = input.split('\n').skip(2);
@@ -89,20 +62,56 @@ fn solve_part1(input: &String) -> String {
     steps.to_string()
 }
 
+fn gcd(a: Num, b: Num) -> Num {
+    let mut mx = if a > b { a } else { b };
+    let mut mn = if a < b { a } else { b };
+
+    let mut rem = mx % mn;
+    while rem != 0 {
+        mx = mn;
+        mn = rem;
+        rem = mx % mn;
+    }
+
+    mn
+}
+
+fn lcm(a: Num, b: Num) -> Num {
+    a * b / gcd(a, b)
+}
+
+fn lcms(values: &Vec<Num>) -> Num {
+    let mut output = lcm(values[0], values[1]);
+    for i in 2..values.len() {
+        output = lcm(values[i], output);
+    }
+
+    output
+}
+
 fn solve_part2(input: &String) -> String {
     let instructions = parse_instructions_from(input);
     let network = parse_network_from(input);
 
-    let mut steps = 0;
-
-    let keys = network.keys().clone();
-    let mut node_names = keys
-        .into_iter()
+    let node_names = network
+        .keys()
         .filter(|k| k.ends_with("A"))
-        .map(|k| *k)
-        .collect::<Vec<&str>>();
+        .collect::<Vec<&&str>>();
+    let mut steps = vec![0; node_names.len()];
+    for (i, name) in node_names.into_iter().enumerate() {
+        let mut it = instructions.chars().cycle();
+        let mut node = name;
+        while !node.ends_with("Z") {
+            steps[i] += 1;
+            node = if it.next().unwrap() == 'L' {
+                &network[node].0
+            } else {
+                &network[node].1
+            };
+        }
+    }
 
-    steps.to_string()
+    lcms(&steps).to_string()
 }
 
 #[cfg(test)]
@@ -145,20 +154,18 @@ XXX = (XXX, XXX)",
     }
 
     #[test]
+    fn test_lcm() {
+        assert_eq!(lcm(3, 4), 12);
+        assert_eq!(lcm(4, 5), 20);
+        let nums = vec![2, 3, 4, 5, 7];
+        assert_eq!(lcms(&nums), 420);
+    }
+
+    #[test]
     fn test_parse_instructions() {
         let instructions = parse_instructions_from(&get_input(0));
         let expected_instructions = Instructions::from("RL");
         assert_eq!(instructions, expected_instructions);
-    }
-
-    #[test]
-    fn test_cycle_instructions() {
-        let instructions = parse_instructions_from(&get_input(0));
-        let expected_instructions = "RLRLRL";
-        let mut it = instructions.chars().cycle();
-        for expected in expected_instructions.chars() {
-            assert_eq!(it.next(), Some(expected));
-        }
     }
 
     #[test]
