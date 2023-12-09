@@ -51,7 +51,27 @@ fn solve_part1(input: &String) -> String {
 }
 
 fn solve_part2(input: &String) -> String {
-    String::new()
+    let histories = parse_histories_from(input);
+    let mut values = 0;
+    for history in histories {
+        let mut sequences = Histories::new();
+        sequences.push(history.clone());
+        let mut end = sequences.len() - 1;
+        while HashSet::<&Num>::from_iter(sequences[end].iter()).len() != 1 {
+            let diffs = (0..sequences[end].len() - 1)
+                .map(|ix| sequences[end][ix + 1] - sequences[end][ix])
+                .collect::<History>();
+            sequences.push(diffs.clone());
+            end = sequences.len() - 1;
+        }
+        let mut diff = sequences[end][0];
+        for sequence in sequences.iter().rev().skip(1) {
+            diff = sequence[0] - diff;
+        }
+        values += diff;
+    }
+
+    values.to_string()
 }
 
 #[cfg(test)]
