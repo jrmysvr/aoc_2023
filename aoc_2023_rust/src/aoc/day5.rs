@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(unused_mut)]
 
 use crate::aoc::input::read_input_for_day;
 use std::collections::HashMap;
@@ -10,8 +11,9 @@ pub fn run() {
     let input = read_input_for_day(5);
     let part1 = solve_part1(&input);
     println!("\tPart1: {part1}");
-    let part2 = solve_part2(&input);
-    println!("\tPart2: {part2}");
+    println!("Skipping day 5 part 2 for now...");
+    //let part2 = solve_part2(&input);
+    //println!("\tPart2: {part2}");
 }
 
 type Num = i64;
