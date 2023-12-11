@@ -32,25 +32,6 @@ fn find_starting_point(input: &String) -> Coordinate {
     panic!("No starting point found!");
 }
 
-fn find_connections_to(coor: &Coordinate, input: &String) -> Coordinates {
-    let mut connections = Coordinates::new();
-
-    let (r, c) = coor;
-    for rx in vec![-1, 0, 1] {
-        for cx in vec![-1, 0, 1] {
-            let connection = (
-                r.checked_add_signed(rx).unwrap_or(*r),
-                c.checked_add_signed(cx).unwrap_or(*c),
-            );
-            if can_connect(coor, &connection, input) {
-                connections.insert(connection);
-            }
-        }
-    }
-
-    connections
-}
-
 fn get_pipe_at(coor: &Coordinate, input: &String) -> char {
     let (r, c) = coor;
     if let Some(line) = input.split('\n').nth(*r) {
@@ -63,6 +44,7 @@ fn get_pipe_at(coor: &Coordinate, input: &String) -> char {
 }
 
 fn can_connect(a: &Coordinate, b: &Coordinate, input: &String) -> bool {
+    let mut connections_found = Vec::<bool>::new();
     for (coor_a, coor_b) in vec![(a, b), (b, a)] {
         let (ra, ca) = coor_a;
         let connections = match get_pipe_at(coor_a, input) {
@@ -90,48 +72,79 @@ fn can_connect(a: &Coordinate, b: &Coordinate, input: &String) -> bool {
                 (*ra, ca.checked_add(1).unwrap_or(*ca)),
                 (ra.checked_add(1).unwrap_or(*ra), *ca),
             ],
+            'S' => return get_pipe_at(coor_b, input) != '.',
             _ => vec![],
         };
 
         for connection in connections {
             if *coor_b == connection {
-                return true;
+                connections_found.push(true);
             }
         }
     }
-    false
+    connections_found.len() > 1
+}
+
+fn find_next_connection_of(
+    coor: &Coordinate,
+    prev: &Coordinate,
+    input: &String,
+) -> Option<Coordinate> {
+    let connections = find_connections_to(coor, input);
+    let next_connections = connections
+        .iter()
+        .filter(|conn| *conn != prev)
+        .map(|conn| *conn)
+        .collect::<Coordinates>();
+
+    next_connections.into_iter().next()
+}
+
+fn find_connections_to(coor: &Coordinate, input: &String) -> Coordinates {
+    let mut connections = Coordinates::new();
+
+    let (r, c) = coor;
+    for rx in vec![-1, 0, 1] {
+        for cx in vec![-1, 0, 1] {
+            if rx == cx {
+                continue;
+            }
+            let connection = (
+                r.checked_add_signed(rx).unwrap_or(*r),
+                c.checked_add_signed(cx).unwrap_or(*c),
+            );
+            if can_connect(coor, &connection, input) {
+                connections.insert(connection);
+            }
+        }
+    }
+
+    connections
 }
 
 fn solve_part1(input: &String) -> String {
     let start = find_starting_point(input);
-    // let mut coors = find_connections_to(&start, input);
     let start_connections = find_connections_to(&start, input);
-
-    let mut steps = 0;
+    let mut steps = 1;
     for conn in start_connections {
-        let mut steps = 1;
-        let mut visited = HashSet::<Coordinate>::new();
-        visited.insert(start.clone());
-        coors.remove(&start);
-        let mut coor = coors.into_iter().next().unwrap();
-        println!("{start:?}, {}", get_pipe_at(&start, input));
-        loop {
-            steps += 1;
-            println!("{coor:?}, {}", get_pipe_at(&coor, input));
-            coors = find_connections_to(&coor, input)
-                .into_iter()
-                .filter(|c| !visited.contains(c))
-                .collect::<Coordinates>();
-            if coors.len() == 0 {
+        let mut step = 1;
+        let mut next = conn;
+        let mut prev = start.clone();
+        while let Some(next_next) = find_next_connection_of(&next, &prev, input) {
+            prev = next;
+            next = next_next;
+            step += 1;
+            if next == start {
                 break;
             }
-            visited.insert(coor.clone());
-            coors.remove(&coor);
-            coor = coors.into_iter().next().unwrap();
         }
+        steps = std::cmp::max(steps, step);
     }
-    // (steps / 2).to_string()
-    String::new()
+    if steps % 2 == 0 {
+        (steps / 2).to_string()
+    } else {
+        ((steps / 2) + 1).to_string()
+    }
 }
 
 fn solve_part2(input: &String) -> String {
@@ -142,7 +155,7 @@ fn solve_part2(input: &String) -> String {
 mod test {
     use super::*;
 
-    const INPUT: [&str; 2] = [
+    const INPUT: [&str; 3] = [
         "
 .....
 .S-7.
@@ -150,13 +163,28 @@ mod test {
 .L-J.
 .....
 ",
+        /*
+                "
+        ..F7.
+        .FJ|.
+        SJ.L7
+        |F--J
+        LJ...
+        ",
+        */
         "
-..F7.
+.FF7.
 .FJ|.
 SJ.L7
 |F--J
 LJ...
 ",
+        "
+7-F7-
+.FJ|7
+SJLL7
+|F--J
+LJ.LJ",
     ];
 
     fn get_input(ix: usize) -> String {
@@ -185,9 +213,14 @@ LJ...
     }
 
     #[test]
-    fn test_can_connect() {
+    fn test_can_connect_0() {
         let input = get_input(0);
-        let connections = vec![((1, 1), (1, 2)), ((1, 1), (2, 1))];
+        let connections = vec![
+            ((1, 1), (1, 2)),
+            ((1, 1), (2, 1)),
+            ((3, 3), (2, 3)),
+            ((3, 3), (3, 2)),
+        ];
 
         for (a, b) in connections.iter() {
             assert!(
@@ -196,7 +229,39 @@ LJ...
             );
         }
 
-        let not_connections = vec![((1, 1), (1, 0)), ((1, 1), (0, 1))];
+        let not_connections = vec![
+            ((1, 1), (1, 0)),
+            ((1, 1), (0, 1)),
+            ((3, 3), (3, 4)),
+            ((3, 3), (4, 3)),
+        ];
+
+        for (a, b) in not_connections.iter() {
+            assert!(
+                !can_connect(a, b, &input),
+                "{a:?} connects to {b:?}, but it shouldn't!"
+            );
+        }
+    }
+
+    #[test]
+    fn test_can_connect_1() {
+        let input = get_input(1);
+        let connections = vec![((0, 2), (0, 3)), ((0, 3), (1, 3))];
+
+        for (a, b) in connections.iter() {
+            assert!(
+                can_connect(a, b, &input),
+                "{a:?} doesn't connect to {b:?} but it should!"
+            );
+        }
+
+        let not_connections = vec![
+            ((0, 1), (0, 0)),
+            ((0, 1), (0, 2)),
+            ((0, 3), (0, 4)),
+            ((1, 3), (1, 4)),
+        ];
 
         for (a, b) in not_connections.iter() {
             assert!(
