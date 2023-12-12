@@ -9,6 +9,7 @@ pub mod day8;
 pub mod day9;
 pub mod day10;
 pub mod day11;
+pub mod day12;
 pub mod input;
 
 pub fn run_all() {
@@ -24,6 +25,7 @@ pub fn run_all() {
         day9::run,
         day10::run,
         day11::run,
+        day12::run,
     ];
 
     for day in days {
