@@ -44,6 +44,7 @@ fn get_pipe_at(coor: &Coordinate, input: &String) -> char {
 }
 
 fn can_connect(a: &Coordinate, b: &Coordinate, input: &String) -> bool {
+    if a == b { return false; }
     let mut connections_found = Vec::<bool>::new();
     for (coor_a, coor_b) in vec![(a, b), (b, a)] {
         let (ra, ca) = coor_a;
@@ -90,12 +91,14 @@ fn find_next_connection_of(
     prev: &Coordinate,
     input: &String,
 ) -> Option<Coordinate> {
+    // TODO: Check if this function works as expected
     let connections = find_connections_to(coor, input);
     let next_connections = connections
         .iter()
         .filter(|conn| *conn != prev)
         .map(|conn| *conn)
         .collect::<Coordinates>();
+    println!("Next connections: {next_connections:?}");
 
     next_connections.into_iter().next()
 }
@@ -104,18 +107,14 @@ fn find_connections_to(coor: &Coordinate, input: &String) -> Coordinates {
     let mut connections = Coordinates::new();
 
     let (r, c) = coor;
-    for rx in vec![-1, 0, 1] {
-        for cx in vec![-1, 0, 1] {
-            if rx == cx {
-                continue;
-            }
-            let connection = (
-                r.checked_add_signed(rx).unwrap_or(*r),
-                c.checked_add_signed(cx).unwrap_or(*c),
-            );
-            if can_connect(coor, &connection, input) {
-                connections.insert(connection);
-            }
+    let dirs = vec![(-1, 0), (0, 1), (1, 0), (0, -1)];
+    for (rx, cx) in dirs {
+        let connection = (
+            r.checked_add_signed(rx).unwrap_or(*r),
+            c.checked_add_signed(cx).unwrap_or(*c),
+        );
+        if can_connect(coor, &connection, input) {
+            connections.insert(connection);
         }
     }
 
@@ -125,16 +124,24 @@ fn find_connections_to(coor: &Coordinate, input: &String) -> Coordinates {
 fn solve_part1(input: &String) -> String {
     let start = find_starting_point(input);
     let start_connections = find_connections_to(&start, input);
-    let mut steps = 1;
+    let mut steps = 0;
+    println!("=================");
+    println!("{start:?} {}", get_pipe_at(&start, input));
+    println!("{start_connections:?}");
+    println!("-----------------");
     for conn in start_connections {
-        let mut step = 1;
+        let mut step = 4;
         let mut next = conn;
         let mut prev = start.clone();
+        println!(".................");
+
         while let Some(next_next) = find_next_connection_of(&next, &prev, input) {
+            println!("{next:?} {}", get_pipe_at(&next, input));
             prev = next;
             next = next_next;
             step += 1;
             if next == start {
+                println!("START FOUND!");
                 break;
             }
         }
@@ -234,6 +241,8 @@ LJ.LJ",
             ((1, 1), (0, 1)),
             ((3, 3), (3, 4)),
             ((3, 3), (4, 3)),
+            ((3, 3), (3, 3)),
+            ((0, 0), (0, 0)),
         ];
 
         for (a, b) in not_connections.iter() {
