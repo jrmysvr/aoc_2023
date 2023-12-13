@@ -98,7 +98,7 @@ fn find_next_connection_of(
         .filter(|conn| *conn != prev)
         .map(|conn| *conn)
         .collect::<Coordinates>();
-    println!("Next connections: {next_connections:?}");
+    //println!("Next connections: {next_connections:?}");
 
     next_connections.into_iter().next()
 }
@@ -125,23 +125,23 @@ fn solve_part1(input: &String) -> String {
     let start = find_starting_point(input);
     let start_connections = find_connections_to(&start, input);
     let mut steps = 0;
-    println!("=================");
-    println!("{start:?} {}", get_pipe_at(&start, input));
-    println!("{start_connections:?}");
-    println!("-----------------");
+    //println!("=================");
+    //println!("{start:?} {}", get_pipe_at(&start, input));
+    //println!("{start_connections:?}");
+    //println!("-----------------");
     for conn in start_connections {
         let mut step = 4;
         let mut next = conn;
         let mut prev = start.clone();
-        println!(".................");
+        //println!(".................");
 
         while let Some(next_next) = find_next_connection_of(&next, &prev, input) {
-            println!("{next:?} {}", get_pipe_at(&next, input));
+            //println!("{next:?} {}", get_pipe_at(&next, input));
             prev = next;
             next = next_next;
             step += 1;
             if next == start {
-                println!("START FOUND!");
+                //println!("START FOUND!");
                 break;
             }
         }
