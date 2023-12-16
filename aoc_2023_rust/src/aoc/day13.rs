@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use crate::aoc::input::read_input_for_day;
 
 pub fn run() {
@@ -10,32 +13,87 @@ pub fn run() {
     println!("\tPart2: {part2}");
 }
 
-type Patterns<'a> = Vec<Vec<&'a str>>;
+type Pattern = Vec<String>;
+type Patterns = Vec<Pattern>;
 
 fn parse_patterns_from(input: &String) -> Patterns {
-    let mut patterns = Vec::<Vec<&str>>::new();
     input
         .split("\n\n")
-        .map(|p| p.split('\n').collect::<Vec<&str>>())
+        .map(|p| p.split('\n').map(|s| s.to_string()).collect::<Pattern>())
         .collect::<Patterns>()
 }
 
-fn rotate<'a>(patterns: &'a Patterns) -> Patterns<'a> {
-    vec![]
+fn rotate(pattern: &Pattern) -> Pattern {
+    let n_cols = pattern[0].len();
+    let mut rotated_pattern = Pattern::new();
+    for c in 0..n_cols {
+        let mut col = Vec::<char>::new();
+        for row in pattern.iter().rev() {
+            col.push(row.chars().nth(c).unwrap());
+        }
+        let rotated = col.iter().collect::<String>();
+        rotated_pattern.push(rotated);
+    }
+
+    rotated_pattern
 }
 
+fn find_reflection_in_rows_of(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
+    // loop through all row indexs.
+    //  - check two adjacent rows at each index
+    //  - If the adjacent rows match, try to each subsequent row until either
+    //    a mismatch is detected or the end of the pattern is reached.
+    //    - If a mismatch is detected, continue trying the next row of the pattern
+    //    - If the end of the pattern is reached, then the reflection index has been found
+    let mut i = 0;
+    while i < pattern.len() - 1 {
+        if pattern[i] == pattern[i + 1] {
+            let mut ix = 1;
+            loop {
+                if i.checked_sub(ix).is_none() || i + ix + 1 >= pattern.len() {
+                    return (Some(i + 1), None);
+                }
+                if pattern[i - ix] != pattern[i + ix + 1] {
+                    break;
+                }
+                ix += 1
+            }
+        }
+        i += 1;
+    }
+    (None, None)
+}
+
+fn find_reflection_in(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
+    // Find first rows which are reflected
+    let (r, c) = find_reflection_in_rows_of(pattern);
+    if r.is_some() || c.is_some() {
+        return (r, c);
+    }
+    // Find first reflected columns if reflected rows weren't found.
+    let rotated = rotate(pattern);
+    let (r, c) = find_reflection_in_rows_of(&rotated);
+    if r.is_some() || c.is_some() {
+        return (c, r);
+    }
+
+    (None, None)
+}
+
+// Calculate a "summary" value based on the number of reflected columns and rows
+// in the input patterns
 fn solve_part1(input: &String) -> String {
     let patterns = parse_patterns_from(input);
-    let rotated = rotate(&patterns);
 
     let mut col_count = 0;
     let mut row_count = 0;
-    //check rows
-    for pattern in patterns {
-        for i in 0..pattern.len() {
-        }
+    for pattern in patterns.iter() {
+        let (r, c) = find_reflection_in(pattern);
+        col_count += if let Some(c_count) = c { c_count } else { 0 };
+        row_count += if let Some(r_count) = r { r_count } else { 0 };
     }
-    String::new()
+
+    (col_count + 100 * row_count).to_string()
 }
 
 fn solve_part2(input: &String) -> String {
@@ -46,7 +104,23 @@ fn solve_part2(input: &String) -> String {
 mod test {
     use super::*;
 
-    const INPUT: [&str; 1] = [""];
+    const INPUT: [&str; 1] = ["
+#.##..##.
+..#.##.#.
+##......#
+##......#
+..#.##.#.
+..##..##.
+#.#.##.#.
+
+#...##..#
+#....#..#
+..##..###
+#####.##.
+#####.##.
+..##..###
+#....#..#
+        "];
 
     fn get_input(ix: usize) -> String {
         String::from(INPUT[ix].trim())
@@ -63,11 +137,77 @@ mod test {
     }
 
     #[test]
-    fn test_full_part1() {
-        assert_eq!(solve_part1(&get_input(0)), "");
+    fn test_rotate() {
+        let pattern = vec!["#.##.".to_string(), "#..##".to_string()];
+        let expected_rotated = vec![
+            "##".to_string(),
+            "..".to_string(),
+            ".#".to_string(),
+            "##".to_string(),
+            "#.".to_string(),
+        ];
+        let actual_rotated = rotate(&pattern);
+
+        assert_eq!(actual_rotated, expected_rotated);
+        let pattern = vec![
+            "#.##.".to_string(),
+            "#..##".to_string(),
+            "#..#.".to_string(),
+        ];
+        let expected_rotated = vec![
+            "###".to_string(),
+            "...".to_string(),
+            "..#".to_string(),
+            "###".to_string(),
+            ".#.".to_string(),
+        ];
+        let actual_rotated = rotate(&pattern);
+        assert_eq!(actual_rotated, expected_rotated);
+
+        let pattern = vec![
+            "#.##..##.".to_string(),
+            "..#.##.#.".to_string(),
+            "##......#".to_string(),
+            "##......#".to_string(),
+            "..#.##.#.".to_string(),
+            "..##..##.".to_string(),
+            "#.#.##.#.".to_string(),
+        ];
+        let expected_rotated = vec![
+            "#..##.#".to_string(),
+            "...##..".to_string(),
+            "###..##".to_string(),
+            ".#....#".to_string(),
+            "#.#..#.".to_string(),
+            "#.#..#.".to_string(),
+            ".#....#".to_string(),
+            "###..##".to_string(),
+            "...##..".to_string(),
+        ];
+        let actual_rotated = rotate(&pattern);
+        assert_eq!(actual_rotated, expected_rotated);
     }
 
     #[test]
+    fn test_find_reflection() {
+        let input = get_input(0);
+        let patterns = parse_patterns_from(&input);
+        let expected_reflections = vec![(None, Some(5)), (Some(4), None)];
+        for (pattern, expected) in patterns.iter().zip(expected_reflections.iter()) {
+            let (actual_r, actual_c) = find_reflection_in(pattern);
+            let (expected_r, expected_c) = expected;
+            assert_eq!(actual_r, *expected_r);
+            assert_eq!(actual_c, *expected_c);
+        }
+    }
+
+    #[test]
+    fn test_full_part1() {
+        assert_eq!(solve_part1(&get_input(0)), "405");
+    }
+
+    #[test]
+    #[ignore]
     fn test_full_part2() {
         assert_eq!(solve_part2(&get_input(0)), "");
     }
