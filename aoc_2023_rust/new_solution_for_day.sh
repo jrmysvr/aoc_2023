@@ -49,11 +49,13 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_full_part1() {
         assert_eq!(solve_part1(&get_input(0)), "");
     }
 
     #[test]
+    #[ignore]
     fn test_full_part2() {
         assert_eq!(solve_part2(&get_input(0)), "");
     }
