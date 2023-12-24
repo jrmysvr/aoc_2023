@@ -80,6 +80,63 @@ fn find_reflection_in(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
     (None, None)
 }
 
+fn find_reflection_in_modified(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
+    let orig_pattern = pattern.clone();
+    let n_rows = pattern[0].len();
+    let (mut r, mut c): (Option<usize>, Option<usize>) = (None, None);
+    let mut row_reflection_found = false;
+    for i in 0..orig_pattern.len() {
+        for j in 0..n_rows {
+            let mut pattern = orig_pattern.clone();
+            let mut row = pattern[i].chars().collect::<Vec<char>>();
+            let mut ch = row[j];
+            ch = if ch == '.' { '#' } else { '.' };
+            row[j] = ch;
+            pattern[i] = row.iter().collect::<String>();
+
+
+            // Find first rows which are reflected
+            let (temp_r, temp_c) = find_reflection_in_rows_of(&pattern);
+            if temp_r.is_some() || temp_c.is_some() {
+                r = if temp_r.is_some() {
+                    let orig_r = if r.is_some() { r.unwrap() } else { usize::MAX };
+                    Some(std::cmp::min(orig_r, temp_r.unwrap()))
+                } else {
+                    None
+                };
+                c = if temp_c.is_some() {
+                    let orig_c = if c.is_some() { c.unwrap() } else { usize::MAX };
+                    Some(std::cmp::min(orig_c, temp_c.unwrap()))
+                } else {
+                    None
+                };
+                row_reflection_found = true;
+            } else if ! row_reflection_found {
+                // Find first reflected columns if reflected rows weren't found.
+                let rotated = rotate(&pattern);
+                let (temp_c, temp_r) = find_reflection_in_rows_of(&rotated);
+
+                if temp_r.is_some() || temp_c.is_some() {
+                    r = if temp_r.is_some() {
+                        let orig_r = if r.is_some() { r.unwrap() } else { usize::MAX };
+                        Some(std::cmp::min(orig_r, temp_r.unwrap()))
+                    } else {
+                        None
+                    };
+                    c = if temp_c.is_some() {
+                        let orig_c = if c.is_some() { c.unwrap() } else { usize::MAX };
+                        Some(std::cmp::min(orig_c, temp_c.unwrap()))
+                    } else {
+                        None
+                    };
+                }
+            }
+        }
+    }
+
+    (r, c)
+}
+
 // Calculate a "summary" value based on the number of reflected columns and rows
 // in the input patterns
 fn solve_part1(input: &String) -> String {
@@ -97,7 +154,17 @@ fn solve_part1(input: &String) -> String {
 }
 
 fn solve_part2(input: &String) -> String {
-    String::new()
+    let patterns = parse_patterns_from(input);
+
+    let mut col_count = 0;
+    let mut row_count = 0;
+    for pattern in patterns.iter() {
+        let (r, c) = find_reflection_in_modified(pattern);
+        col_count += if let Some(c_count) = c { c_count } else { 0 };
+        row_count += if let Some(r_count) = r { r_count } else { 0 };
+    }
+
+    (col_count + 100 * row_count).to_string()
 }
 
 #[cfg(test)]
@@ -190,6 +257,18 @@ mod test {
 
     #[test]
     fn test_find_reflection() {
+        let pattern = vec![
+            "##......#".to_string(),
+            "##......#".to_string(),
+            "#.##..##.".to_string(),
+            "..#.##.#.".to_string(),
+            "..#.##.#.".to_string(),
+            "..##..##.".to_string(),
+            "#.#.##.#.".to_string(),
+        ];
+        let (actual_r, actual_c) = find_reflection_in(&pattern);
+        assert_eq!(actual_r, Some(1));
+        assert_eq!(actual_c, None);
         let input = get_input(0);
         let patterns = parse_patterns_from(&input);
         let expected_reflections = vec![(None, Some(5)), (Some(4), None)];
@@ -207,8 +286,7 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn test_full_part2() {
-        assert_eq!(solve_part2(&get_input(0)), "");
+        assert_eq!(solve_part2(&get_input(0)), "400");
     }
 }
