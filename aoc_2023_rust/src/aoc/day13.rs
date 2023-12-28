@@ -39,7 +39,7 @@ fn rotate(pattern: &Pattern) -> Pattern {
 }
 
 fn find_reflection_in_rows_of(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
-    // loop through all row indexs.
+    // loop through all row indexes.
     //  - check two adjacent rows at each index
     //  - If the adjacent rows match, try to each subsequent row until either
     //    a mismatch is detected or the end of the pattern is reached.
@@ -81,59 +81,69 @@ fn find_reflection_in(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
 }
 
 fn find_reflection_in_modified(pattern: &Pattern) -> (Option<usize>, Option<usize>) {
-    let orig_pattern = pattern.clone();
     let n_rows = pattern[0].len();
     let (mut r, mut c): (Option<usize>, Option<usize>) = (None, None);
     let mut row_reflection_found = false;
-    for i in 0..orig_pattern.len() {
+    for i in 0..pattern.len() {
         for j in 0..n_rows {
-            let mut pattern = orig_pattern.clone();
-            let mut row = pattern[i].chars().collect::<Vec<char>>();
+            let mut temp_pattern = pattern.clone();
+            let mut row = temp_pattern[i].chars().collect::<Vec<char>>();
             let mut ch = row[j];
             ch = if ch == '.' { '#' } else { '.' };
             row[j] = ch;
-            pattern[i] = row.iter().collect::<String>();
-
-
-            // Find first rows which are reflected
-            let (temp_r, temp_c) = find_reflection_in_rows_of(&pattern);
-            if temp_r.is_some() || temp_c.is_some() {
-                r = if temp_r.is_some() {
-                    let orig_r = if r.is_some() { r.unwrap() } else { usize::MAX };
-                    Some(std::cmp::min(orig_r, temp_r.unwrap()))
+            temp_pattern[i] = row.iter().collect::<String>();
+            let (temp_r, temp_c) = find_reflection_in(&temp_pattern);
+            if temp_r.is_some() {
+                if r.is_some() && temp_r.unwrap() < r.unwrap() {
+                    r = temp_r;
+                    c = None;
                 } else {
-                    None
-                };
-                c = if temp_c.is_some() {
-                    let orig_c = if c.is_some() { c.unwrap() } else { usize::MAX };
-                    Some(std::cmp::min(orig_c, temp_c.unwrap()))
-                } else {
-                    None
-                };
-                row_reflection_found = true;
-            } else if ! row_reflection_found {
-                // Find first reflected columns if reflected rows weren't found.
-                let rotated = rotate(&pattern);
-                let (temp_c, temp_r) = find_reflection_in_rows_of(&rotated);
-
-                if temp_r.is_some() || temp_c.is_some() {
-                    r = if temp_r.is_some() {
-                        let orig_r = if r.is_some() { r.unwrap() } else { usize::MAX };
-                        Some(std::cmp::min(orig_r, temp_r.unwrap()))
-                    } else {
-                        None
-                    };
-                    c = if temp_c.is_some() {
-                        let orig_c = if c.is_some() { c.unwrap() } else { usize::MAX };
-                        Some(std::cmp::min(orig_c, temp_c.unwrap()))
-                    } else {
-                        None
-                    };
+                    r = temp_r;
                 }
             }
+
+            if temp_c.is_some() {
+                if c.is_some() && temp_c.unwrap() < c.unwrap() {
+                    c = temp_c;
+                    r = None;
+                } else {
+                    c = temp_c;
+                }
+            }
+            /*
+            if temp_r.is_some() || temp_c.is_some() {
+                return (temp_r, temp_c);
+            }
+            */
+
+            /*
+            r = if temp_r.is_some() {
+                if r.is_some() {
+                    Some(std::cmp::min(r.unwrap(), temp_r.unwrap()))
+                } else {
+                    Some(usize::MAX)
+                }
+            } else {
+                r
+            };
+            c = if temp_c.is_some() {
+                if c.is_some() {
+                    Some(std::cmp::min(c.unwrap(), temp_c.unwrap()))
+                } else {
+                    Some(usize::MAX)
+                }
+            } else {
+                c
+            };
+            */
         }
     }
 
+    /*
+    if c.is_some() && r.is_some() {
+        panic!("Can both be some?? {r:?}, {c:?}");
+    }
+    */
     (r, c)
 }
 
@@ -159,12 +169,21 @@ fn solve_part2(input: &String) -> String {
     let mut col_count = 0;
     let mut row_count = 0;
     for pattern in patterns.iter() {
-        let (r, c) = find_reflection_in_modified(pattern);
-        col_count += if let Some(c_count) = c { c_count } else { 0 };
-        row_count += if let Some(r_count) = r { r_count } else { 0 };
+        let (r, c) = find_reflection_in(pattern);
+        let (mod_r, mod_c) = find_reflection_in_modified(pattern);
+        if (r.is_some() || mod_r.is_some()) && mod_r != r {
+            row_count += if let Some(r_count) = mod_r { r_count } else { 0 };
+        }
+        if (c.is_some() || mod_c.is_some()) && mod_c != c {
+            col_count += if let Some(c_count) = mod_c { c_count } else { 0 };
+        }
     }
 
-    (col_count + 100 * row_count).to_string()
+    let output = col_count + 100 * row_count;
+    assert!(output != 21700);
+    assert!(output != 23947);
+    assert!(output != 43007);
+    output.to_string()
 }
 
 #[cfg(test)]
@@ -257,6 +276,22 @@ mod test {
 
     #[test]
     fn test_find_reflection() {
+        let pattern = vec!["##......#".to_string(), "##......#".to_string()];
+        let (actual_r, actual_c) = find_reflection_in(&pattern);
+        assert_eq!(actual_r, Some(1));
+        assert_eq!(actual_c, None);
+
+        let pattern = vec![
+            "..#.##.#.".to_string(),
+            "##......#".to_string(),
+            "##......#".to_string(),
+            "..#.##.#.".to_string(),
+            "..##..##.".to_string(),
+        ];
+        let (actual_r, actual_c) = find_reflection_in(&pattern);
+        assert_eq!(actual_r, Some(2));
+        assert_eq!(actual_c, None);
+
         let pattern = vec![
             "##......#".to_string(),
             "##......#".to_string(),
@@ -269,14 +304,34 @@ mod test {
         let (actual_r, actual_c) = find_reflection_in(&pattern);
         assert_eq!(actual_r, Some(1));
         assert_eq!(actual_c, None);
+
+        let pattern = vec![
+            "#.##..##.".to_string(),
+            "..#.##.#.".to_string(),
+            "##......#".to_string(),
+            "##......#".to_string(),
+            "..#.##.#.".to_string(),
+            "..##..##.".to_string(),
+            "#.#.##.#.".to_string(),
+        ];
+
+        let rotated = rotate(&pattern);
+        let (actual_r, actual_c) = find_reflection_in(&rotated);
+        assert_eq!(actual_r, Some(5));
+        assert_eq!(actual_c, None);
+
+        let (actual_r, actual_c) = find_reflection_in(&pattern);
+        assert_eq!(actual_r, None);
+        assert_eq!(actual_c, Some(5));
+
         let input = get_input(0);
         let patterns = parse_patterns_from(&input);
         let expected_reflections = vec![(None, Some(5)), (Some(4), None)];
         for (pattern, expected) in patterns.iter().zip(expected_reflections.iter()) {
             let (actual_r, actual_c) = find_reflection_in(pattern);
             let (expected_r, expected_c) = expected;
-            assert_eq!(actual_r, *expected_r);
-            assert_eq!(actual_c, *expected_c);
+            assert_eq!(actual_r, *expected_r, "{pattern:#?}");
+            assert_eq!(actual_c, *expected_c, "{pattern:#?}");
         }
     }
 
